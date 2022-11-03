@@ -4,8 +4,340 @@
     <script src=https://code.jquery.com/jquery-3.6.0.min.js></script>
     <link href="/css/my.css" rel="stylesheet">
 </head>
-<body>
+
+<body onload="getTableRows(0)">
 <h1>RPG admin panel</h1>
+<h2>Accounts list:</h2>
+
+<label for="selectCountValue">Count per page: </label>
+<select id="selectCountValue" onchange="getTableRows(0)">
+    <option value="3">3</option>
+    <option value="4">4</option>
+    <option value="5">5</option>
+    <option value="6">6</option>
+    <option value="7">7</option>
+    <option value="8">8</option>
+    <option value="9">9</option>
+    <option value="10">10</option>
+    <option value="11">11</option>
+    <option value="12">12</option>
+    <option value="13">13</option>
+    <option value="14">14</option>
+    <option value="15">15</option>
+    <option value="16">16</option>
+    <option value="17">17</option>
+    <option value="18">18</option>
+    <option value="19">19</option>
+    <option value="20">20</option>
+</select>
+
+<table id="tab">
+    <tr>
+        <th>#</th>
+        <th>Name</th>
+        <th>Title</th>
+        <th>Race</th>
+        <th>Profession</th>
+        <th>Level</th>
+        <th>Birthday</th>
+        <th>Banned</th>
+        <th>Edit</th>
+        <th>Delete</th>
+    </tr>
+</table>
+
+<div id="pages">Pages:</div>
+
+<hr>
+<h2>Create new account:</h2>
+
+<label for="inputNameNew">Name:</label>
+<input type="text" id="inputNameNew" name="name" required size="12" maxlength="12">
+<br>
+<label for="inputTitleNew">Title:</label>
+<input type="text" id="inputTitleNew" name="title" required size="30" maxlength="30">
+<br>
+<label for="inputRaceNew">Race:</label>
+<select id="inputRaceNew" name="race">
+    <option value='HUMAN'>HUMAN</option>
+    <option value='DWARF'>DWARF</option>
+    <option value='ELF'>ELF</option>
+    <option value='GIANT'>GIANT</option>
+    <option value='ORC'>ORC</option>
+    <option value='TROLL'>TROLL</option>
+    <option value='HOBBIT'>HOBBIT</option>
+</select>
+<br>
+<label for="inputProfessionNew">Profession:</label>
+<select id="inputProfessionNew" name="profession">
+    <option value='WARRIOR'>WARRIOR</option>
+    <option value='ROGUE'>ROGUE</option>
+    <option value='SORCERER'>SORCERER</option>
+    <option value='CLERIC'>CLERIC</option>
+    <option value='PALADIN'>PALADIN</option>
+    <option value='NAZGUL'>NAZGUL</option>
+    <option value='WARLOCK'>WARLOCK</option>
+    <option value='DRUID'>DRUID</option>
+</select>
+<br>
+<label for="inputLevelNew">Level:</label>
+<input type="number" id="inputLevelNew" name="level" min="0" max="100">
+<br>
+<label for="inputBirthdayNew">Birthday:</label>
+<input type="date" id="inputBirthdayNew" name="birthday" min="2000-01-01-" max="3000-12-31">
+<br>
+<label for="inputBannedNew">Banned:</label>
+<select id="inputBannedNew" name="banned">
+    <option value='false'>false</option>
+    <option value='true'>true</option>
+</select>
+<br>
+<span>
+    <button type="submit" onclick="createAccount()">Save</button>
+</span>
+
+<script>
+
+    function getTableRows(pageNumber) {
+        $("tr:has(td)").remove(); // удалить все тэги <tr>, которые содержат в себе тэги <td>
+
+        var url = "/rest/players?";
+
+        var playersCountPerPage = $("#selectCountValue").val(); // получить значение из указанного по id списка выбора
+        if (playersCountPerPage == null) {
+            playersCountPerPage = 3;
+        }
+
+        // собираем url с параметрами
+        url = url.concat("pageSize=").concat(playersCountPerPage);
+
+        if (pageNumber == null) {
+            pageNumber = 0;
+        }
+
+        url = url.concat("&pageNumber=").concat(pageNumber);
+
+        $.get(url, function (data) {            // get запрос к серверу
+           $.each(data, function (i, item) {    // обход массива, который вернул сервер
+              $('<tr>').html("<td>"             // добавление строки в html страницу
+                  + item.id + "</td><td>"
+                  + item.name + "</td><td>"
+                  + item.title + "</td><td>"
+                  + item.race + "</td><td>"
+                  + item.profession + "</td><td>"
+                  + item.level + "</td><td>"
+                  + new Date(item.birthday).toLocaleDateString() + "</td><td>" // преобразование лонга в дату
+                  + item.banned + "</td><td>"
+                  + "<button id='button_edit_" + item.id + "' onclick='editAccount(" + item.id + ")'>"
+                  + "<img src='/img/edit.png'>" + "</button>" + "</td><td>"
+                  + "<button id='button_delete_" + item.id + "' onclick='deleteAccount(" + item.id + ")'>"
+                  + "<img src='/img/delete.png'>" + "</button>" + "</td>"
+              ).appendTo("#tab"); // присоединить к указанной по id таблице
+           });
+        });
+
+        var totalPlayersCount = getTotalPlayersCount();
+
+        var pagesCount = Math.ceil(totalPlayersCount / playersCountPerPage); // округление вверх
+
+        $("button.pgn-button-style").remove(); // удаление всех кнопок класса 'pgn-button-style'
+
+        for (var i=0; i < pagesCount; i++) {
+            var button_tag = "<button>" + (i+1) + "</button>"; // создание кнопки
+            var button = $(button_tag)                         // создание dom-объекта кнопки
+                .attr('id', "paging_button_" + i)              // задание атрибутов кнопки
+                .attr('onclick', "getTableRows(" + i + ")")
+                .addClass('pgn-button-style');                 // задание класса кнопке
+
+            $('#pages').append(button);                        // добавление кнопки к <div> по id
+        }
+
+        var currentButtonId = "#paging_button_" + pageNumber;
+        $(currentButtonId).css('color', "red");       // задание цвета по id
+    }
+
+    function getTotalPlayersCount() {
+        var url = "/rest/players/count";
+        var result = 0;
+
+        $.ajax({
+            url: url,                    // Куда пойдет запрос
+            async: false,                // Запрос будет выполнен синхронно
+            success: function (data) {   // Функция, которая будет выполнена после успешного запроса
+                result = parseInt(data); // В переменной data содержится ответ сервера
+            }
+        });
+
+        return result;
+    }
+
+    function deleteAccount(id) {
+        var url = "/rest/players/" + id;
+        $.ajax({
+            url: url,
+            type: 'DELETE', // тип запроса, м.б. GET, PUT и т.д.
+            success: function () {
+                getTableRows(getCurrentPage());
+            }
+        });
+    }
+
+    function editAccount(id) {
+        var editButtonId = "#button_edit_" + id;
+        var deleteButtonId = "#button_delete_" + id;
+
+        $(deleteButtonId).remove(); // удаление элемента со страницы
+
+        var saveImageTag = "<img src='/img/save.png'>";
+        $(editButtonId).html(saveImageTag);
+
+        var currentTrElement = $(editButtonId).parent().parent(); // получение родителя родителя кнопки - строки
+        var children = currentTrElement.children(); // получение детей строки - ячеек td
+
+        var td_name = children[1];
+        td_name.innerHTML = "<input id='input_name_" + id + "' type='text' value='" + td_name.innerHTML + "'>";
+        var td_title = children[2];
+        td_title.innerHTML = "<input id='input_title_" + id + "' type='text' value='" + td_title.innerHTML + "'>";
+
+        var td_race = children[3];
+        var raceId = "#select_race_" + id;
+        var currentRace = td_race.innerHTML;
+        td_race.innerHTML = getDropdownRace(id);
+        $(raceId).val(currentRace).change(); // установка значения в выпадающем списке
+
+        var td_professional = children[4];
+        var professionId = "#select_profession_" + id;
+        var currentProfession = td_professional.innerHTML;
+        td_professional.innerHTML = getDropdownProfessional(id);
+        $(professionId).val(currentProfession).change();
+
+        var td_banned = children[7];
+        var bannedId = "#select_banned_" + id;
+        var currentBanned = td_banned.innerHTML;
+        td_banned.innerHTML = getDropdownBanned(id);
+        $(bannedId).val(currentBanned).change();
+
+        var property_save_tag = "saveAccount(" + id + ")";
+        $(editButtonId).attr('onclick', property_save_tag); // добавление атрибута кнопке
+    }
+
+    function saveAccount(id) {
+        var value_name = $("#input_name_" + id).val();
+        var value_title = $("#input_title_" + id).val();
+        var value_race = $("#select_race_" + id).val();
+        var value_profession = $("#select_profession_" + id).val();
+        var value_banned = $("#select_banned_" + id).val();
+
+        var url = "/rest/players/" + id;
+
+        $.ajax({
+            url: url,
+            type: 'POST',
+            dataType: 'json', // тип данных в ответе (xml, json, script, html)
+            contentType: 'application/json;charset=UTF-8', // используемый при отправке на сервер тип контента
+            async: false,
+            data: JSON.stringify({          // данные для отправки на сервер
+                "name": value_name,         // JSON.stringify преобразует переданные данные в json
+                "title": value_title,
+                "race": value_race,
+                "profession": value_profession,
+                "banned": value_banned
+            }),
+            success: function () {
+                getTableRows(getCurrentPage());
+            }
+        });
+    }
+
+    // создание выпадающего списка
+    function getDropdownRace(id) {
+        var raceId = "select_race_" + id;
+        return "<label for='race'></label>"
+            + "<select id=" + raceId + " name='race'>"
+            + "<option value='HUMAN'>HUMAN</option>"
+            + "<option value='DWARF'>DWARF</option>"
+            + "<option value='ELF'>ELF</option>"
+            + "<option value='GIANT'>GIANT</option>"
+            + "<option value='ORC'>ORC</option>"
+            + "<option value='TROLL'>TROLL</option>"
+            + "<option value='HOBBIT'>HOBBIT</option>"
+            + "</select>";
+    }
+
+    function getDropdownProfessional(id) {
+        var professionId = "select_profession_" + id;
+        return "<label for='profession'></label>"
+            + "<select id=" + professionId + " name='profession'>"
+            + "<option value='WARRIOR'>WARRIOR</option>"
+            + "<option value='ROGUE'>ROGUE</option>"
+            + "<option value='SORCERER'>SORCERER</option>"
+            + "<option value='CLERIC'>CLERIC</option>"
+            + "<option value='PALADIN'>PALADIN</option>"
+            + "<option value='NAZGUL'>NAZGUL</option>"
+            + "<option value='WARLOCK'>WARLOCK</option>"
+            + "<option value='DRUID'>DRUID</option>"
+            + "</select>";
+    }
+
+    function getDropdownBanned(id) {
+        var bannedId = "select_banned_" + id;
+        return "<label for='banned'></label>"
+            + "<select id=" + bannedId + " name='banned'>"
+            + "<option value='false'>false</option>"
+            + "<option value='true'>true</option>"
+            + "</select>";
+    }
+
+    function getCurrentPage() {
+        var currentPage = 1;
+        $('button:parent(div)').each(function () {          // выберем все кнопки, у которых родитель = div
+            if ($(this).css('color') === 'rgb(255,0,0)') {  // переберем их в цикле, this - текущая кнопка
+                currentPage = $(this).text();
+            }
+        });
+        return parseInt(currentPage) - 1;
+    }
+
+    function createAccount() {
+        var value_name = $("#inputNameNew").val();
+        var value_title = $("#inputTitleNew").val();
+        var value_race = $("#inputRaceNew").val();
+        var value_profession = $("#inputProfessionNew").val();
+        var value_level = $("#inputLevelNew").val();
+        var value_birthday = $("#inputBirthdayNew").val();
+        var value_banned = $("#inputBannedNew").val();
+
+        var url = "/rest/players/";
+
+        $.ajax({
+            url: url,
+            type: 'POST',
+            dataType: 'json',
+            contentType: 'application/json;charset=UTF-8',
+            async: false,
+            data: JSON.stringify({
+                "name": value_name,
+                "title": value_title,
+                "race": value_race,
+                "profession": value_profession,
+                "level": value_level,
+                "birthday": new Date(value_birthday).getTime(), // преобразование даты в Long
+                "banned": value_banned
+            }),
+            success: function () {
+                $("#inputNameNew").val("");
+                $("#inputTitleNew").val("");
+                $("#inputRaceNew").val("");
+                $("#inputProfessionNew").val("");
+                $("#inputLevelNew").val("");
+                $("#inputBirthdayNew").val("");
+                $("#inputBannedNew").val("");
+                getTableRows(getCurrentPage());
+            }
+        });
+    }
+
+</script>
 
 </body>
 </html>

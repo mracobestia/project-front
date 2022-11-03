@@ -1,0 +1,4 @@
+th, td {
+    border: 1px solid black; // граница 1 пиксель, черная
+    padding: 3px; // отступ 3 пикселя
+}
